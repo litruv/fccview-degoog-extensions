@@ -59,6 +59,12 @@
       "name": "Zen",
       "description": "A minimalist calming theme.",
       "version": "1.0.0"
+    },
+    {
+      "path": "themes/catpuccin",
+      "name": "Catppuccin",
+      "description": "Mocha (blue), Latte (light blue), Rose (red/coral), Peach (orange/amber).",
+      "version": "1.0.0"
     }
   ],
   "engines": [
