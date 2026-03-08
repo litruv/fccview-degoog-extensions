@@ -11,7 +11,7 @@
       "type": "command"
     },
     {
-      "path": "plugins/imdb-slot",
+      "path": "plugins/tmdb-slot",
       "name": "TMDb",
       "description": "Shows movie/TV show details above search results.",
       "version": "1.0.0",
@@ -23,6 +23,20 @@
       "path": "themes/zen",
       "name": "Zen",
       "description": "A minimalist calming theme.",
+      "version": "1.0.0"
+    }
+  ],
+  "engines": [
+    {
+      "path": "engines/ecosia",
+      "name": "Ecosia",
+      "description": "Privacy-focused web search (no settings).",
+      "version": "1.0.0"
+    },
+    {
+      "path": "engines/startpage",
+      "name": "Startpage",
+      "description": "Privacy-focused web search. Optional: use Anonymous View so result links open via Startpage's proxy.",
       "version": "1.0.0"
     }
   ]
