@@ -1,20 +1,21 @@
 (function () {
-  const params = new URLSearchParams(window.location.search);
+  var params = new URLSearchParams(window.location.search);
   if (params.get("q") || window.location.pathname !== "/") return;
 
-  const main = document.getElementById("main-home");
+  var main = document.getElementById("main-home");
   if (!main) return;
 
-  let feedPage = 1;
-  let loading = false;
-  let exhausted = false;
-  let showOnDesktop = false;
-  let observer = null;
+  var feedPage = 1;
+  var loading = false;
+  var exhausted = false;
+  var showOnDesktop = false;
+  var observer = null;
+  var cardTpl = "";
 
-  const isDesktop = () => window.matchMedia("(min-width: 768px)").matches;
+  var isDesktop = function () { return window.matchMedia("(min-width: 768px)").matches; };
 
   function escapeHtml(str) {
-    const el = document.createElement("span");
+    var el = document.createElement("span");
     el.textContent = str;
     return el.innerHTML;
   }
@@ -30,76 +31,109 @@
 
   function formatDate(dateStr) {
     if (!dateStr) return "";
-    const date = new Date(dateStr);
+    var date = new Date(dateStr);
     if (isNaN(date.getTime())) return "";
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
+    var diff = Date.now() - date.getTime();
+    var mins = Math.floor(diff / 60000);
     if (mins < 1) return "just now";
     if (mins < 60) return mins + "m ago";
-    const hours = Math.floor(mins / 60);
+    var hours = Math.floor(mins / 60);
     if (hours < 24) return hours + "h ago";
-    const days = Math.floor(hours / 24);
+    var days = Math.floor(hours / 24);
     if (days < 7) return days + "d ago";
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-
-  function skeletonCards(count) {
-    let html = '<div class="skeleton-feed" aria-hidden="true">';
-    for (let i = 0; i < count; i++) {
-      html += '<div class="skeleton-feed-card"><div class="skeleton-feed-image"></div><div class="skeleton-feed-body"><div class="skeleton-feed-line skeleton-feed-source"></div><div class="skeleton-feed-line skeleton-feed-title"></div></div></div>';
-    }
-    html += "</div>";
-    return html;
   }
 
   function faviconUrl(url) {
     try {
       var hostname = new URL(url).hostname;
       return "/api/proxy/image?url=" + encodeURIComponent("https://www.google.com/s2/favicons?domain=" + hostname + "&sz=128");
-    } catch(e) { return ""; }
+    } catch (e) { return ""; }
+  }
+
+  function skeletonCards(count) {
+    var html = '<div class="skeleton-feed" aria-hidden="true">';
+    for (var i = 0; i < count; i++) {
+      html += '<div class="skeleton-feed-card"><div class="skeleton-feed-image"></div><div class="skeleton-feed-body"><div class="skeleton-feed-line skeleton-feed-source"></div><div class="skeleton-feed-line skeleton-feed-title"></div></div></div>';
+    }
+    html += "</div>";
+    return html;
   }
 
   function renderCard(item) {
-    const thumb = item.thumbnail
+    var image = item.thumbnail
       ? '<img class="home-feed-card-img" src="' + escapeHtml(proxyImageUrl(item.thumbnail)) + '" alt="" loading="lazy" onerror="this.parentElement.querySelector(\'.home-feed-card-img\')?.remove()">'
       : '<div class="home-feed-card-favicon-wrap"><img class="home-feed-card-favicon" src="' + escapeHtml(faviconUrl(item.url)) + '" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>';
-    const source = item.source || cleanHostname(item.url);
-    const dateStr = formatDate(item.pubDate);
-    const datePart = dateStr
+    var source = escapeHtml(item.source || cleanHostname(item.url));
+    var dateStr = formatDate(item.pubDate);
+    var datePart = dateStr
       ? '<span class="home-feed-card-date">' + escapeHtml(dateStr) + "</span>"
       : "";
+
+    if (cardTpl) {
+      return cardTpl.replace(/\{\{(\w+)\}\}/g, function (_, key) {
+        var map = {
+          itemUrl: escapeHtml(item.url),
+          image: image,
+          source: source,
+          datePart: datePart,
+          title: escapeHtml(item.title),
+        };
+        return map[key] != null ? map[key] : "";
+      });
+    }
+
     return '<a class="home-feed-card" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener">'
-      + thumb
+      + image
       + '<div class="home-feed-card-body">'
-      + '<div class="home-feed-card-meta"><span class="home-feed-card-source">' + escapeHtml(source) + "</span>" + datePart + "</div>"
+      + '<div class="home-feed-card-meta"><span class="home-feed-card-source">' + source + "</span>" + datePart + "</div>"
       + '<div class="home-feed-card-title">' + escapeHtml(item.title) + "</div>"
       + "</div></a>";
   }
 
-  async function fetchPage(page) {
-    const res = await fetch("/api/plugin/rss/feed?page=" + page);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (page === 1 && data.showOnDesktop !== undefined) {
-      showOnDesktop = data.showOnDesktop;
+  function createCardElement(item) {
+    var temp = document.createElement("div");
+    temp.innerHTML = renderCard(item);
+    return temp.firstChild;
+  }
+
+  function insertSorted(container, sentinel, cardEl, pubDate) {
+    var ts = pubDate ? new Date(pubDate).getTime() : 0;
+    if (isNaN(ts)) ts = 0;
+    var cards = container.querySelectorAll(".home-feed-card");
+    for (var i = 0; i < cards.length; i++) {
+      var cardTs = Number(cards[i].dataset.ts || "0");
+      if (ts > cardTs) {
+        container.insertBefore(cardEl, cards[i]);
+        return;
+      }
     }
+    container.insertBefore(cardEl, sentinel);
+  }
+
+  async function fetchPage(page) {
+    var res = await fetch("/api/plugin/rss/feed?page=" + page);
+    if (!res.ok) return [];
+    var data = await res.json();
+    if (data.showOnDesktop !== undefined) showOnDesktop = data.showOnDesktop;
+    if (data.cardTemplate && !cardTpl) cardTpl = data.cardTemplate;
     return data.results || [];
   }
 
   async function loadMore(container) {
     if (loading || exhausted) return;
     loading = true;
-    const items = await fetchPage(feedPage);
+    var items = await fetchPage(feedPage);
     if (items.length === 0) {
       exhausted = true;
-      const s = container.querySelector(".home-feed-sentinel");
+      var s = container.querySelector(".home-feed-sentinel");
       if (s) s.remove();
       loading = false;
       return;
     }
-    const sentinel = container.querySelector(".home-feed-sentinel");
-    const fragment = document.createDocumentFragment();
-    const temp = document.createElement("div");
+    var sentinel = container.querySelector(".home-feed-sentinel");
+    var fragment = document.createDocumentFragment();
+    var temp = document.createElement("div");
     temp.innerHTML = items.map(renderCard).join("");
     while (temp.firstChild) fragment.appendChild(temp.firstChild);
     container.insertBefore(fragment, sentinel);
@@ -107,10 +141,70 @@
     loading = false;
   }
 
-  async function init() {
-    const container = document.createElement("div");
+  function initStream(container, desktop, sentinel) {
+    var gotItems = false;
+    var skeletonRemoved = false;
+    var es = new EventSource("/api/plugin/rss/feed/stream");
+
+    function removeSkeleton() {
+      if (skeletonRemoved) return;
+      skeletonRemoved = true;
+      container.classList.remove("home-news-feed--loading");
+      var sk = container.querySelector(".skeleton-feed");
+      if (sk) sk.remove();
+    }
+
+    es.addEventListener("init", function (e) {
+      var data = JSON.parse(e.data);
+      showOnDesktop = data.showOnDesktop;
+      if (data.cardTemplate) cardTpl = data.cardTemplate;
+      if (desktop && !showOnDesktop) {
+        es.close();
+        container.remove();
+      }
+    });
+
+    es.addEventListener("items", function (e) {
+      var items = JSON.parse(e.data);
+      if (!items.length) return;
+      if (!gotItems) {
+        gotItems = true;
+        removeSkeleton();
+      }
+      for (var i = 0; i < items.length; i++) {
+        var card = createCardElement(items[i]);
+        var ts = items[i].pubDate ? new Date(items[i].pubDate).getTime() : 0;
+        if (isNaN(ts)) ts = 0;
+        card.dataset.ts = ts;
+        insertSorted(container, sentinel, card, items[i].pubDate);
+      }
+    });
+
+    es.addEventListener("done", function () {
+      es.close();
+      removeSkeleton();
+      if (!gotItems) {
+        if (!desktop) main.classList.remove("has-feed");
+        container.remove();
+        return;
+      }
+      exhausted = true;
+    });
+
+    es.onerror = function () {
+      es.close();
+      removeSkeleton();
+      if (!gotItems) {
+        if (!desktop) main.classList.remove("has-feed");
+        container.remove();
+      }
+    };
+  }
+
+  function init() {
+    var container = document.createElement("div");
     container.className = "home-news-feed";
-    const desktop = isDesktop();
+    var desktop = isDesktop();
 
     container.innerHTML = skeletonCards(desktop ? 6 : 4);
     container.classList.add("home-news-feed--loading");
@@ -122,32 +216,11 @@
 
     main.appendChild(container);
 
-    try {
-      const items = await fetchPage(1);
-      if (items.length === 0) {
-        if (!desktop) main.classList.remove("has-feed");
-        container.remove();
-        return;
-      }
+    var sentinel = document.createElement("div");
+    sentinel.className = "home-feed-sentinel";
+    container.appendChild(sentinel);
 
-      if (desktop && !showOnDesktop) {
-        container.remove();
-        return;
-      }
-
-      container.classList.remove("home-news-feed--loading");
-      container.innerHTML = items.map(renderCard).join("") + '<div class="home-feed-sentinel"></div>';
-      feedPage = 2;
-
-      const sentinel = container.querySelector(".home-feed-sentinel");
-      observer = new IntersectionObserver(function (entries) {
-        if (entries[0].isIntersecting) loadMore(container);
-      }, { rootMargin: "400px" });
-      if (sentinel) observer.observe(sentinel);
-    } catch {
-      if (!desktop) main.classList.remove("has-feed");
-      container.remove();
-    }
+    initStream(container, desktop, sentinel);
   }
 
   init();

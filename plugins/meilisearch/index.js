@@ -5,6 +5,7 @@ let titleField = "title";
 let urlField = "url";
 let contentField = "content";
 let thumbnailField = "thumbnail";
+let template = "";
 
 function escHtml(s) {
   return String(s)
@@ -21,15 +22,24 @@ const MEILISEARCH_LOGO =
 async function searchIndex(meiliUrlVal, apiKeyVal, index, query, offset) {
   const headers = { "Content-Type": "application/json" };
   if (apiKeyVal) headers["Authorization"] = `Bearer ${apiKeyVal}`;
+  const cropFields = [contentField, "description", "summary", "body", "text"];
   const res = await fetch(`${meiliUrlVal}/indexes/${index}/search`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ q: query, limit: PER_PAGE, offset }),
+    body: JSON.stringify({
+      q: query,
+      limit: PER_PAGE,
+      offset,
+      attributesToCrop: cropFields,
+      cropLength: 200,
+      attributesToHighlight: [contentField, titleField],
+    }),
   });
   const data = await res.json();
   return {
     index,
     hits: data.hits || [],
+    formatted: data.hits?.map((h) => h._formatted) || [],
     estimatedTotalHits: data.estimatedTotalHits ?? (data.hits?.length || 0),
   };
 }
@@ -94,6 +104,10 @@ export default {
     },
   ],
 
+  init(ctx) {
+    template = ctx.template;
+  },
+
   configure(settings) {
     meiliUrl = settings.url || "";
     apiKey = settings.apiKey || "";
@@ -140,8 +154,12 @@ export default {
       for (const result of settled) {
         if (result.status === "fulfilled") {
           totalEstimated += result.value.estimatedTotalHits;
-          for (const hit of result.value.hits) {
-            allHits.push({ hit, index: result.value.index });
+          for (let i = 0; i < result.value.hits.length; i++) {
+            allHits.push({
+              hit: result.value.hits[i],
+              formatted: result.value.formatted[i],
+              index: result.value.index,
+            });
           }
         }
       }
@@ -154,23 +172,27 @@ export default {
       }
 
       const results = allHits
-        .map(({ hit, index }) => {
+        .map(({ hit, formatted, index }) => {
           const title = String(hit[titleField] || "");
           const url = String(hit[urlField] || "");
-          const content = String(hit[contentField] || hit["metadata_summary"] || "");
+          const fmt = formatted || {};
+          const content = String(
+            fmt[contentField] || fmt["description"] || fmt["summary"] || fmt["body"] || fmt["text"] ||
+            hit[contentField] || hit["description"] || hit["summary"] || hit["body"] || hit["text"] ||
+            hit["metadata_summary"] || ""
+          );
           const thumbnail = String(hit[thumbnailField] || "");
           const source = String(hit["source"] || "");
           const type = String(hit["type"] || "");
 
           if (!title || !url) return "";
 
-          const favicon = `<img class="result-favicon" src="${MEILISEARCH_LOGO}" alt="">`;
           const thumbBlock = thumbnail
             ? `<div class="result-thumbnail-wrap"><img class="result-thumbnail-img" src="${escHtml(thumbnail)}" alt=""></div>`
             : "";
 
           const indexLabel = index.replace(/_content$/, "");
-          const tags = [
+          const badges = [
             `<span class="result-engine-tag">${escHtml(indexLabel)}</span>`,
             type ? `<span class="result-engine-tag">${escHtml(type)}</span>` : "",
             source ? `<span class="result-engine-tag">${escHtml(source)}</span>` : "",
@@ -178,7 +200,16 @@ export default {
             .filter(Boolean)
             .join("");
 
-          return `<div class="result-item"><div class="result-item-inner"><div class="result-body"><div class="result-url-row">${favicon}<cite class="result-cite">${escHtml(url)}</cite></div><a class="result-title" href="${escHtml(url)}" target="_blank">${escHtml(title)}</a><p class="result-snippet">${escHtml(content)}</p><div class="result-engines">${tags}</div></div>${thumbBlock}</div></div>`;
+          const data = {
+            faviconSrc: MEILISEARCH_LOGO,
+            cite: escHtml(url),
+            itemUrl: escHtml(url),
+            title: escHtml(title),
+            snippet: escHtml(content.slice(0, 300)),
+            badges,
+            thumbBlock,
+          };
+          return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
         })
         .filter(Boolean)
         .join("");

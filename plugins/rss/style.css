@@ -116,7 +116,7 @@
 }
 
 .home-feed-card-favicon-wrap {
-  display: none;
+  display: flex;
   width: 100%;
   aspect-ratio: 16 / 9;
   background: var(--bg-hover);
@@ -201,10 +201,6 @@
   .home-news-feed--desktop .home-feed-sentinel {
     flex: 0 0 1px;
     min-width: 1px;
-  }
-
-  .home-news-feed--desktop .home-feed-card-favicon-wrap {
-    display: flex;
   }
 
   .home-news-feed--desktop .skeleton-feed {

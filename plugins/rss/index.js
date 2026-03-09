@@ -1,5 +1,8 @@
 const cheerio = require("cheerio");
 
+let template = "";
+let cardTemplate = "";
+
 const FEED_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CONCURRENCY = 5;
@@ -277,31 +280,30 @@ function proxyImageUrl(url) {
   return `/api/proxy/image?url=${encodeURIComponent(url)}`;
 }
 
+function renderResultItem(item) {
+  const dateStr = formatDate(item.pubDate);
+  const thumbBlock = item.thumbnail
+    ? `<div class="result-thumbnail-wrap"><img class="result-thumbnail-img" src="${escapeHtml(proxyImageUrl(item.thumbnail))}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+    : "";
+  let badges = `<span class="result-engine-tag">${escapeHtml(item.source)}</span>`;
+  if (dateStr) badges += `<span class="rss-result-date">${escapeHtml(dateStr)}</span>`;
+  const data = {
+    faviconSrc: faviconUrl(item.url),
+    cite: escapeHtml(cleanUrl(item.url)),
+    itemUrl: escapeHtml(item.url),
+    title: escapeHtml(item.title),
+    snippet: escapeHtml(item.description.slice(0, 200)),
+    badges,
+    thumbBlock,
+  };
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
+}
+
 function renderResultsHtml(items, page, query) {
   if (items.length === 0) {
     return `<div class="command-result"><p>No RSS results found${query ? ` for <strong>${escapeHtml(query)}</strong>` : ""}.</p></div>`;
   }
-  let html = "";
-  for (const item of items) {
-    const dateStr = formatDate(item.pubDate);
-    const thumbBlock = item.thumbnail
-      ? `<div class="result-thumbnail-wrap"><img class="result-thumbnail-img" src="${escapeHtml(proxyImageUrl(item.thumbnail))}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
-      : "";
-    const body = `
-      <div class="result-url-row">
-        <img class="result-favicon" src="${faviconUrl(item.url)}" alt="" width="26" height="26" onerror="this.style.display='none'">
-        <cite class="result-cite">${escapeHtml(cleanUrl(item.url))}</cite>
-      </div>
-      <a class="result-title" href="${escapeHtml(item.url)}" target="_blank">${escapeHtml(item.title)}</a>
-      <p class="result-snippet">${escapeHtml(item.description.slice(0, 200))}</p>
-      <div class="result-engines"><span class="result-engine-tag">${escapeHtml(item.source)}</span>${dateStr ? `<span class="rss-result-date">${escapeHtml(dateStr)}</span>` : ""}</div>`;
-    if (thumbBlock) {
-      html += `<div class="result-item"><div class="result-item-inner"><div class="result-body">${body}</div>${thumbBlock}</div></div>`;
-    } else {
-      html += `<div class="result-item">${body}</div>`;
-    }
-  }
-  return html;
+  return items.map(renderResultItem).join("");
 }
 
 const command = {
@@ -330,6 +332,11 @@ const command = {
         "Display the news feed on the home page on desktop too (horizontal scrolling).",
     },
   ],
+
+  async init(ctx) {
+    template = ctx.template;
+    cardTemplate = await ctx.readFile("card.html");
+  },
 
   configure(settings) {
     const urlsVal = settings.urls;
@@ -387,6 +394,17 @@ const command = {
   },
 };
 
+function serializeItem(item) {
+  return {
+    title: item.title,
+    url: item.url,
+    snippet: item.description,
+    source: item.source,
+    thumbnail: item.thumbnail,
+    pubDate: item.pubDate ? item.pubDate.toISOString() : null,
+  };
+}
+
 const routes = [
   {
     method: "get",
@@ -395,18 +413,57 @@ const routes = [
       const url = new URL(req.url);
       const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
       const items = await searchFeeds("", page);
-      const results = items.map((item) => ({
-        title: item.title,
-        url: item.url,
-        snippet: item.description,
-        source: item.source,
-        thumbnail: item.thumbnail,
-        pubDate: item.pubDate ? item.pubDate.toISOString() : null,
-      }));
+      const results = items.map(serializeItem);
       return new Response(
-        JSON.stringify({ results, showOnDesktop }),
+        JSON.stringify({ results, showOnDesktop, cardTemplate }),
         { headers: { "Content-Type": "application/json" } },
       );
+    },
+  },
+  {
+    method: "get",
+    path: "/feed/stream",
+    handler: async () => {
+      const urls = getActiveUrls();
+      const capped = urls.slice(0, MAX_FEEDS_PER_REQUEST);
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (event, data) => {
+            controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          };
+          send("init", { showOnDesktop, totalFeeds: capped.length, cardTemplate });
+          let active = 0;
+          let idx = 0;
+          await new Promise((resolve) => {
+            function next() {
+              if (idx >= capped.length && active === 0) return resolve();
+              while (active < CONCURRENCY && idx < capped.length) {
+                const url = capped[idx++];
+                active++;
+                fetchFeed(url).then((r) => {
+                  if (r && r.items.length > 0) {
+                    send("items", r.items.map(serializeItem));
+                  }
+                }).catch(() => {}).finally(() => {
+                  active--;
+                  next();
+                });
+              }
+            }
+            next();
+          });
+          send("done", {});
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
     },
   },
 ];
