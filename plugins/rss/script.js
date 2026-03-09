@@ -97,6 +97,34 @@
     return temp.firstChild;
   }
 
+  function interleaveCards(container, sentinel) {
+    var cards = Array.from(container.querySelectorAll(".home-feed-card"));
+    if (cards.length < 3) return;
+    var bySource = {};
+    for (var i = 0; i < cards.length; i++) {
+      var src = cards[i].dataset.source || "";
+      if (!bySource[src]) bySource[src] = [];
+      bySource[src].push(cards[i]);
+    }
+    var queues = Object.values(bySource);
+    queues.sort(function (a, b) {
+      return Number(b[0].dataset.ts || 0) - Number(a[0].dataset.ts || 0);
+    });
+    var idxs = new Array(queues.length).fill(0);
+    var ordered = [];
+    var remaining = queues.length;
+    while (remaining > 0) {
+      for (var j = 0; j < queues.length; j++) {
+        if (idxs[j] >= queues[j].length) continue;
+        ordered.push(queues[j][idxs[j]++]);
+        if (idxs[j] >= queues[j].length) remaining--;
+      }
+    }
+    for (var k = 0; k < ordered.length; k++) {
+      container.insertBefore(ordered[k], sentinel);
+    }
+  }
+
   function insertSorted(container, sentinel, cardEl, pubDate) {
     var ts = pubDate ? new Date(pubDate).getTime() : 0;
     if (isNaN(ts)) ts = 0;
@@ -182,6 +210,7 @@
         var ts = items[i].pubDate ? new Date(items[i].pubDate).getTime() : 0;
         if (isNaN(ts)) ts = 0;
         card.dataset.ts = ts;
+        card.dataset.source = items[i].source || cleanHostname(items[i].url);
         insertSorted(container, sentinel, card, items[i].pubDate);
       }
     });
@@ -194,6 +223,7 @@
         container.remove();
         return;
       }
+      interleaveCards(container, sentinel);
       exhausted = true;
     });
 

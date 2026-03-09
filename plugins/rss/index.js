@@ -136,6 +136,12 @@ function parseRssOrAtomInner(xml, feedUrl) {
       if (imgMatch && imgMatch[1] && imgMatch[1].startsWith("http")) {
         thumbnail = imgMatch[1];
       }
+      if (!thumbnail) {
+        const posterMatch = htmlContent.match(/<video[^>]+poster=["']([^"']+)["']/i);
+        if (posterMatch && posterMatch[1] && posterMatch[1].startsWith("http")) {
+          thumbnail = posterMatch[1];
+        }
+      }
     }
     if (title && link && link.startsWith("http")) {
       items.push({
@@ -198,20 +204,41 @@ async function fetchFeed(url) {
 
 async function fetchAllFeeds(urls) {
   const capped = urls.slice(0, MAX_FEEDS_PER_REQUEST);
-  const all = [];
+  const bySource = new Map();
   for (let i = 0; i < capped.length; i += CONCURRENCY) {
     const batch = capped.slice(i, i + CONCURRENCY);
     const results = await Promise.all(batch.map((u) => fetchFeed(u)));
     for (const r of results) {
-      if (r) all.push(...r.items);
+      if (!r || r.items.length === 0) continue;
+      const key = r.feedTitle || capped[i];
+      const sorted = [...r.items].sort((a, b) => {
+        const ta = a.pubDate?.getTime() ?? 0;
+        const tb = b.pubDate?.getTime() ?? 0;
+        return tb - ta;
+      });
+      bySource.set(key, sorted);
     }
   }
-  all.sort((a, b) => {
-    const ta = a.pubDate?.getTime() ?? 0;
-    const tb = b.pubDate?.getTime() ?? 0;
+  return interleaveFeeds(bySource);
+}
+
+function interleaveFeeds(bySource) {
+  const queues = [...bySource.values()].map((items) => ({ items, idx: 0 }));
+  queues.sort((a, b) => {
+    const ta = a.items[0]?.pubDate?.getTime() ?? 0;
+    const tb = b.items[0]?.pubDate?.getTime() ?? 0;
     return tb - ta;
   });
-  return all;
+  const result = [];
+  let remaining = queues.length;
+  while (remaining > 0) {
+    for (const q of queues) {
+      if (q.idx >= q.items.length) continue;
+      result.push(q.items[q.idx++]);
+      if (q.idx >= q.items.length) remaining--;
+    }
+  }
+  return result;
 }
 
 function getActiveUrls() {
