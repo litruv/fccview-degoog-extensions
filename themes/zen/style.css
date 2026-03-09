@@ -242,6 +242,23 @@ a:hover {
   border-color: var(--border);
 }
 
+.search-bar.ac-open {
+  border-color: var(--border);
+  border-radius: 40px 40px 0 0;
+}
+
+.search-bar.ac-open .ac-dropdown {
+  top: 100%;
+  left: -1px;
+  right: -1px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 40px 40px;
+  box-shadow: var(--shadow-md);
+}
+
 .search-input {
   flex: 1;
   border: none;
@@ -331,6 +348,23 @@ a:hover {
 .results-search-bar:hover, .results-search-bar:focus-within {
   box-shadow: var(--shadow-md);
   border-color: var(--border);
+}
+
+.results-search-bar.ac-open {
+  border-color: var(--border);
+  border-radius: 40px 40px 0 0;
+}
+
+.results-search-bar.ac-open .ac-dropdown {
+  top: 100%;
+  left: -1px;
+  right: -1px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 40px 40px;
+  box-shadow: var(--shadow-md);
 }
 
 .search-submit-btn {

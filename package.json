@@ -39,6 +39,13 @@
       "type": "command"
     },
     {
+      "path": "plugins/search-history",
+      "name": "Search history",
+      "description": "Stores search history in data/history.json with timestamps; !history shows a paginated, deletable list.",
+      "version": "1.0.0",
+      "type": "command"
+    },
+    {
       "path": "plugins/tmdb-slot",
       "name": "TMDb",
       "description": "Shows movie/TV show details above search results.",

@@ -402,6 +402,23 @@ body::after {
   border-color: var(--primary) ;
 }
 
+.search-bar.ac-open,
+.results-search-bar.ac-open {
+  border-color: var(--primary) ;
+  border-radius: 12px 12px 0 0 ;
+}
+
+.search-bar.ac-open .ac-dropdown,
+.results-search-bar.ac-open .ac-dropdown {
+  left: -2px;
+  right: -2px;
+  border-left: 2px solid var(--primary) ;
+  border-right: 2px solid var(--primary) ;
+  border-bottom: 2px solid var(--primary) ;
+  border-top: none ;
+  border-radius: 0 0 12px 12px ;
+}
+
 .search-btn,
 .lucky-btn,
 .button-row button {
