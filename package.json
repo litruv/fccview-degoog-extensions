@@ -75,7 +75,7 @@
       },
       {
         "path": "plugins/rss",
-        "name": "RSS",
+        "name": "Home RSS Feeds",
         "description": "Shows RSS feed items above search results.",
         "version": "1.0.0",
         "type": "slot"
