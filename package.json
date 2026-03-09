@@ -84,13 +84,13 @@
     {
       "path": "engines/ecosia",
       "name": "Ecosia",
-      "description": "Adds the Ecosia engine to degoog.",
+      "description": "Adds the Ecosia engine to degoog. Note: Ecosia may return no results when Cloudflare blocks server-side requests; use another engine if that happens.",
       "version": "1.0.0"
     },
     {
       "path": "engines/startpage",
       "name": "Startpage",
-      "description": "Adds the startspage engine to degoog. You can enable Anonymous View so result links open via Startpage's proxy.",
+      "description": "Adds the Startpage engine to degoog. You can enable Anonymous View so result links open via Startpage's proxy.",
       "version": "1.0.0"
     }
   ]

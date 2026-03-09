@@ -13,7 +13,26 @@ function getRandomUserAgent() {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
+function getBrowserHeaders() {
+  return {
+    "User-Agent": getRandomUserAgent(),
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    Connection: "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+  };
+}
+
 export const outgoingHosts = ["www.ecosia.org", "ecosia.org"];
+
+const CLOUDFLARE_CHALLENGE_MARKER = "Just a moment";
 
 export default class EcosiaEngine {
   name = "Ecosia";
@@ -26,9 +45,14 @@ export default class EcosiaEngine {
     const url = `https://www.ecosia.org/search?${params.toString()}`;
     const doFetch = context?.fetch ?? fetch;
     const response = await doFetch(url, {
-      headers: { "User-Agent": getRandomUserAgent() },
+      headers: getBrowserHeaders(),
     });
     const html = await response.text();
+    if (html.includes(CLOUDFLARE_CHALLENGE_MARKER)) {
+      throw new Error(
+        "Ecosia returned a Cloudflare challenge page; server-side requests are often blocked. Try another engine or use Ecosia in your browser.",
+      );
+    }
     const $ = cheerio.load(html);
     const results = [];
 
