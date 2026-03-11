@@ -200,7 +200,7 @@ export const slot = {
   id: "math-slot",
   name: "Math",
   description: "Evaluates math expressions and shows the result above search results.",
-  position: "above-results",
+  position: "at-a-glance",
 
   settingsSchema: [
     {
