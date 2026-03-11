@@ -103,21 +103,11 @@
   text-overflow: ellipsis;
 }
 
-.imdb-cast-heading {
-  margin: 0 0 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-}
-
 .imdb-cast-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   padding: 0.25rem 0;
-  margin: 0 0 1.25rem;
 }
 
 .imdb-cast-strip {
@@ -127,19 +117,12 @@
   padding: 0 0.25rem 0 0;
 }
 
+.imdb-cast-scroll {
+  scrollbar-width: none;
+}
+
 .imdb-cast-scroll::-webkit-scrollbar {
-  height: 6px;
-}
-
-.imdb-cast-scroll::-webkit-scrollbar-track {
-  background: var(--border-light);
-  border-radius: 3px;
-}
-
-.imdb-cast-scroll::-webkit-scrollbar-thumb {
-  background: var(--text-secondary);
-  opacity: 0.3;
-  border-radius: 3px;
+  display: none;
 }
 
 .imdb-cast-card {
@@ -255,6 +238,11 @@
   margin: 0 0 1rem;
 }
 
+
+.imdb-filmography-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .imdb-filmography-strip {
   display: flex;
   gap: 0.75rem;
@@ -352,4 +340,145 @@
   .imdb-meta-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.tmdb-tabs {
+  position: relative;
+}
+
+.tmdb-tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.tmdb-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tmdb-tab-btn {
+  all: unset;
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  margin-bottom: -1px;
+}
+
+.tmdb-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tmdb-tab-btn--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary, #1a73e8);
+}
+
+.tmdb-accordion {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.tmdb-accordion .tmdb-accordion {
+  border-radius: 6px;
+  margin: 0.35rem 0;
+}
+
+.tmdb-accordion-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.tmdb-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.tmdb-accordion-summary::before {
+  content: "";
+  flex-shrink: 0;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--text-secondary);
+  border-bottom: 2px solid var(--text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.tmdb-accordion[open] > .tmdb-accordion-summary::before {
+  transform: rotate(45deg);
+}
+
+.tmdb-accordion-meta {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.tmdb-accordion-body {
+  padding: 0 0 0.75rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.tmdb-season-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.tmdb-season-poster {
+  flex-shrink: 0;
+  width: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.tmdb-season-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tmdb-season-overview {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tmdb-season-link {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--primary, #1a73e8);
+  text-decoration: none;
+}
+
+.tmdb-season-link:hover {
+  text-decoration: underline;
 }
